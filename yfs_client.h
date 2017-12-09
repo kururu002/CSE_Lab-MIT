@@ -11,7 +11,7 @@
 #include <vector>
 
 
-#define CA_FILE "./cert/ca.pem:
+#define CA_FILE "./cert/ca.pem"
 #define USERFILE	"./etc/passwd"
 #define GROUPFILE	"./etc/group"
 
@@ -52,7 +52,12 @@ class yfs_client {
 	unsigned short uid;
 	unsigned short gid;
   };
-
+  struct symlinkinfo {
+    unsigned long long size;
+    unsigned long atime;
+    unsigned long mtime;
+    unsigned long ctime;
+  };	
   struct dirent {
     std::string name;
     yfs_client::inum inum;
@@ -64,15 +69,16 @@ class yfs_client {
 
  public:
   yfs_client();
-  yfs_client(std::string, std::string, const char*);
+  yfs_client(std::string, std::string,const char*);
 
   bool isfile(inum);
   bool isdir(inum);
-
+  bool issymlink(inum);
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
-
-  int setattr(inum, filestat, unsigned long);
+  int getsymlink(inum, symlinkinfo &);
+  
+  int setattr(inum, size_t);
   int lookup(inum, const char *, bool &, inum &);
   int create(inum, const char *, mode_t, inum &);
   int readdir(inum, std::list<dirent> &);
@@ -82,6 +88,14 @@ class yfs_client {
   int mkdir(inum , const char *, mode_t , inum &);
 
   int verify(const char* cert_file, unsigned short*);
+  int symlink(const char *link, inum parent, const char *name, inum &ino_out);
+  int readlink(inum ino, std::string &link);
+  /** you may need to add symbolic link related methods here.*/
+  int commit();
+  int undo();
+  int redo();
+
 };
+
 
 #endif 
