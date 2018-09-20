@@ -4,8 +4,11 @@
 #define inode_h
 
 #include <stdint.h>
-#include "extent_protocol.h" // TODO: delete it
-
+#include "extent_protocol.h"
+#include <vector>
+#include <fstream>
+#include <iostream>
+#include <pthread.h>
 #define DISK_SIZE  1024*1024*16
 #define BLOCK_SIZE 512
 #define BLOCK_NUM  (DISK_SIZE/BLOCK_SIZE)
@@ -27,19 +30,23 @@ class disk {
 // block layer -----------------------------------------
 
 typedef struct superblock {
-  uint32_t size;
-  uint32_t nblocks;
-  uint32_t ninodes;
+    uint32_t size;
+    uint32_t nblocks;
+    uint32_t ninodes;
+    uint32_t version;
+    uint32_t maxversion;
 } superblock_t;
 
 class block_manager {
  private:
   disk *d;
   std::map <uint32_t, int> using_blocks;
+  
  public:
   block_manager();
   struct superblock sb;
-
+  char encode(char,int);
+  char decode(char,char);
   uint32_t alloc_block();
   void free_block(uint32_t id);
   void read_block(uint32_t id, char *buf);
@@ -77,22 +84,34 @@ typedef struct inode {
 } inode_t;
 
 class inode_manager {
- private:
-  block_manager *bm;
-  struct inode* get_inode(uint32_t inum);
-  void put_inode(uint32_t inum, struct inode *ino);
+    private:
+        pthread_mutex_t lmutex;
+        block_manager *bm;
+        unsigned char alloc_num[INODE_NUM];
+        struct inode* get_inode(uint32_t inum);
+        void put_inode(uint32_t inum, struct inode *ino);
+        std::vector<std::string> logfile;
+        uint32_t transnum;
+        pthread_mutex_t loglock;
+        pthread_mutex_t alclock;
+        pthread_t tid;
+        uint32_t version;
+        uint32_t logpos;
 
- public:
-  inode_manager();
-  uint32_t alloc_inode(uint32_t type);
-  void free_inode(uint32_t inum);
-  void read_file(uint32_t inum, char **buf, int *size);
-  void write_file(uint32_t inum, const char *buf, int size);
-  void remove_file(uint32_t inum);
-  void getattr(uint32_t inum, extent_protocol::attr &a);
+    public:
+        int genpoly(int);
+        inode_manager();
+        ~inode_manager();
+        uint32_t alloc_inode(uint32_t type);
+        void free_inode(uint32_t inum);
+        void read_file(uint32_t inum, char **buf, int *size);
+        void write_file(uint32_t inum, const char *buf, int size);
+        void remove_file(uint32_t inum);
+        void getattr(uint32_t inum, extent_protocol::attr &a);
+        void commit();
+        void undo();
+        void redo();
 };
-
-
 void* test_daemon(void* arg);
 #endif
 
